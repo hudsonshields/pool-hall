@@ -170,8 +170,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 const TW=1000, TH=500;
 const RAIL=50;
 const BR=13;
-const FRICTION=280;
-const FRICTION_ROLL=120;
+const FRICTION=200;
+const FRICTION_ROLL=85;
 const MAX_POWER=1500;
 const MIN_POWER=80;
 const BALL_COR=0.96;
@@ -1329,12 +1329,12 @@ class App{
 
   _updateHUD(){
     if(!this.gameState) return;
-    const my=this.gameState.currentPlayer===this.playerIndex;
-    document.getElementById('panel-p1').classList.toggle('active-turn',my);
-    document.getElementById('panel-p2').classList.toggle('active-turn',!my);
+    const p0Turn=this.gameState.currentPlayer===0;
+    document.getElementById('panel-p1').classList.toggle('active-turn',p0Turn);
+    document.getElementById('panel-p2').classList.toggle('active-turn',!p0Turn);
     document.getElementById('turn-text').textContent=my?'Your Turn':"Opponent's Turn";
-    this._renderBallRack('rack-p1',this.playerIndex);
-    this._renderBallRack('rack-p2',1-this.playerIndex);
+    this._renderBallRack('rack-p1',0);
+    this._renderBallRack('rack-p2',1);
   }
 
   _renderBallRack(elId,pi){
