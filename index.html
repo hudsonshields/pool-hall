@@ -170,8 +170,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 const TW=1000, TH=500;
 const RAIL=50;
 const BR=13;
-const FRICTION=130;
-const FRICTION_ROLL=55;
+const FRICTION=280;
+const FRICTION_ROLL=120;
 const MAX_POWER=1500;
 const MIN_POWER=80;
 const BALL_COR=0.96;
@@ -181,7 +181,7 @@ const PHYSICS_DT=1/PHYSICS_HZ;
 const HEAD_X=TW*0.25;
 const FOOT_X=TW*0.75;
 const FOOT_Y=TH*0.5;
-const STOP_SPEED=2.5;
+const STOP_SPEED=3;
 const SPIN_STRENGTH=180;
 
 const BALL_COLORS=[
@@ -390,7 +390,7 @@ class Physics{
 
       let nearPocket=false;
       for(const p of POCKETS){
-        if(vDist(b,p)<p.ir){nearPocket=true;break;}
+        if(vDist(b,p)<p.r+BR+8){nearPocket=true;break;}
       }
 
       if(!nearPocket){
@@ -457,19 +457,18 @@ class Physics{
   _hardBoundary(){
     for(const b of this.balls){
       if(b.pocketed) continue;
-      // Allow balls in pocket zones to pass
-      let nearPocket=false;
+      let inPocketZone=false;
       for(const p of POCKETS){
-        if(vDist(b,p)<p.ir+BR){nearPocket=true;break;}
+        if(vDist(b,p)<p.r+BR+4){inPocketZone=true;break;}
       }
-      if(!nearPocket){
+      if(!inPocketZone){
         if(b.x<BR){b.x=BR;if(b.vx<0)b.vx*=-CUSHION_COR;}
         if(b.x>TW-BR){b.x=TW-BR;if(b.vx>0)b.vx*=-CUSHION_COR;}
         if(b.y<BR){b.y=BR;if(b.vy<0)b.vy*=-CUSHION_COR;}
         if(b.y>TH-BR){b.y=TH-BR;if(b.vy>0)b.vy*=-CUSHION_COR;}
       }
-      // Safety net: way off table → pocket it
-      if(b.x<-BR*3||b.x>TW+BR*3||b.y<-BR*3||b.y>TH+BR*3){
+      // Safety net: past the rail edge → pocket to nearest
+      if(b.x<-BR*1.5||b.x>TW+BR*1.5||b.y<-BR*1.5||b.y>TH+BR*1.5){
         let bd=Infinity,bp=0;
         for(let i=0;i<POCKETS.length;i++){const d=vDist(b,POCKETS[i]);if(d<bd){bd=d;bp=i;}}
         b.pocketed=true;b.vx=0;b.vy=0;
@@ -548,7 +547,7 @@ class Renderer{
   }
 
   // Spin indicator position in screen pixels
-  spinPos(){return{cx:this.W-55,cy:this.H-55,r:28};}
+  spinPos(){return{cx:this.gx(TW*0.85),cy:this.gy(-RAIL/2),r:18};}
 
   draw(state){
     const ctx=this.ctx;
@@ -602,12 +601,9 @@ class Renderer{
     }
 
     for(const p of POCKETS){
-      const pg=ctx.createRadialGradient(this.gx(p.x),this.gy(p.y),this.gs(p.r*0.3),this.gx(p.x),this.gy(p.y),this.gs(p.r+12));
-      pg.addColorStop(0,'#050505');pg.addColorStop(0.7,'#080808');pg.addColorStop(1,'rgba(8,8,8,0)');
-      ctx.fillStyle=pg;ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+12),0,Math.PI*2);ctx.fill();
-      ctx.fillStyle='#060606';ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+4),0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='rgba(40,25,10,0.6)';ctx.lineWidth=this.gs(2);
-      ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+3),0,Math.PI*2);ctx.stroke();
+      ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+1),0,Math.PI*2);ctx.fill();
+      ctx.strokeStyle='rgba(30,20,8,0.5)';ctx.lineWidth=this.gs(1.5);
+      ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+1),0,Math.PI*2);ctx.stroke();
     }
 
     ctx.fillStyle='#c9a84c';const dSz=3;
@@ -622,8 +618,8 @@ class Renderer{
       ctx.beginPath();ctx.arc(this.gx(TW+RAIL/2-4),this.gy(dy),this.gs(dSz),0,Math.PI*2);ctx.fill();
     }
 
-    ctx.strokeStyle='rgba(255,255,255,0.08)';ctx.lineWidth=this.gs(1);
-    ctx.setLineDash([this.gs(6),this.gs(6)]);
+    ctx.strokeStyle='rgba(255,255,255,0.25)';ctx.lineWidth=this.gs(1.5);
+    ctx.setLineDash([this.gs(8),this.gs(6)]);
     ctx.beginPath();ctx.moveTo(this.gx(HEAD_X),this.gy(0));ctx.lineTo(this.gx(HEAD_X),this.gy(TH));ctx.stroke();
     ctx.setLineDash([]);
 
