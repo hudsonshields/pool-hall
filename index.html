@@ -11,7 +11,7 @@
 <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:'Inter',system-ui,sans-serif;background:#0f1923;color:#f5f0e8;min-height:100vh;min-height:100dvh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
+body{font-family:'Inter',system-ui,sans-serif;background:radial-gradient(ellipse at 50% 30%,#162636,#0f1923 60%,#0a1018);color:#f5f0e8;min-height:100vh;min-height:100dvh;overflow:hidden;display:flex;flex-direction:column;align-items:center;justify-content:center}
 h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 .screen{display:none;width:100%;height:100vh;height:100dvh;flex-direction:column;align-items:center;justify-content:center}
 .screen.active{display:flex}
@@ -48,8 +48,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 
 #game{padding:8px 12px;justify-content:flex-start;gap:6px;position:relative}
 #hud{display:flex;align-items:center;justify-content:space-between;width:100%;padding:6px 0;flex-shrink:0}
-.player-panel{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;background:#162230;min-width:0;border:1px solid transparent;transition:all .3s ease}
-.player-panel.active-turn{background:#1a2d40;box-shadow:0 0 12px rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3)}
+.player-panel{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:10px;background:linear-gradient(135deg,#162230,#1a2838);min-width:0;border:1px solid rgba(42,58,74,.5);transition:all .3s ease;box-shadow:0 2px 8px rgba(0,0,0,.2)}
+.player-panel.active-turn{background:linear-gradient(135deg,#1a2d40,#1e3550);box-shadow:0 0 16px rgba(201,168,76,.2),0 2px 8px rgba(0,0,0,.2);border:1px solid rgba(201,168,76,.35)}
 .player-panel .player-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px}
 .player-panel .player-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#667788}
 .player-score{font-family:'Playfair Display',serif;font-size:20px;font-weight:700;color:#c9a84c;min-width:20px;text-align:center}
@@ -61,14 +61,14 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 #turn-text{font-family:'Playfair Display',serif;font-size:16px;color:#c9a84c;transition:all .3s}
 #game-message{font-size:12px;color:#8899aa;margin-top:2px;min-height:16px;transition:all .3s}
 #table-container{flex:1;display:flex;align-items:center;justify-content:center;width:100%;min-height:0}
-#canvas{display:block;border-radius:6px;cursor:crosshair;touch-action:none;max-width:100%;max-height:100%}
+#canvas{display:block;border-radius:6px;cursor:crosshair;touch-action:none;max-width:100%;max-height:100%;filter:drop-shadow(0 8px 40px rgba(201,168,76,.08))}
 
-.overlay{display:none;position:fixed;inset:0;background:rgba(10,15,20,.85);z-index:100;align-items:center;justify-content:center;flex-direction:column;backdrop-filter:blur(4px)}
+.overlay{display:none;position:fixed;inset:0;background:rgba(10,15,20,.88);z-index:100;align-items:center;justify-content:center;flex-direction:column;backdrop-filter:blur(6px)}
 .overlay.active{display:flex}
-.overlay h2{font-size:28px;margin-bottom:8px;color:#c9a84c}
+.overlay h2{font-size:30px;margin-bottom:8px;color:#c9a84c;text-shadow:0 2px 12px rgba(201,168,76,.3)}
 .overlay p{color:#8899aa;font-size:14px;margin-bottom:24px}
-.result-content{text-align:center;animation:fadeUp .4s ease-out}
-.result-scores{font-size:36px;font-weight:700;margin:16px 0 24px;font-family:'Playfair Display',serif}
+.result-content{text-align:center;animation:fadeUp .4s ease-out;background:rgba(22,34,48,.6);padding:40px 50px;border-radius:16px;border:1px solid rgba(201,168,76,.15);box-shadow:0 20px 60px rgba(0,0,0,.4)}
+.result-scores{font-size:40px;font-weight:700;margin:16px 0 24px;font-family:'Playfair Display',serif;color:#f5f0e8}
 .result-scores .s-divider{margin:0 12px;color:#445566}
 #rematch-wait{color:#8899aa;font-size:13px;margin-top:12px;min-height:20px}
 @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
@@ -170,8 +170,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 const TW=1000, TH=500;
 const RAIL=50;
 const BR=13;
-const FRICTION=200;
-const FRICTION_ROLL=85;
+const FRICTION=220;
+const FRICTION_ROLL=55;
 const MAX_POWER=1500;
 const MIN_POWER=80;
 const BALL_COR=0.96;
@@ -446,7 +446,7 @@ class Physics{
       const sp=vLen(b.vx,b.vy);
       if(sp>0){
         const sf=clamp(sp/400,0,1);
-        const fric=lerp(FRICTION+FRICTION_ROLL,FRICTION,sf);
+        const fric=lerp(FRICTION_ROLL,FRICTION,sf);
         const dec=fric*dt;
         if(dec>=sp){b.vx=0;b.vy=0;}
         else{const f=(sp-dec)/sp;b.vx*=f;b.vy*=f;}
@@ -582,28 +582,50 @@ class Renderer{
     const fg=ctx.createRadialGradient(this.W/2,this.H/2,0,this.W/2,this.H/2,this.W*0.6);
     fg.addColorStop(0,'#0f8045');fg.addColorStop(1,'#0a6b38');
     ctx.fillStyle=fg;ctx.fillRect(this.gx(0),this.gy(0),this.gs(TW),this.gs(TH));
-    ctx.fillStyle='rgba(0,0,0,0.035)';
+    // Overhead lamp warm glow
+    const lamp=ctx.createRadialGradient(this.W/2,this.H/2,0,this.W/2,this.H/2,this.W*0.45);
+    lamp.addColorStop(0,'rgba(255,240,200,0.04)');lamp.addColorStop(1,'rgba(0,0,0,0.03)');
+    ctx.fillStyle=lamp;ctx.fillRect(this.gx(0),this.gy(0),this.gs(TW),this.gs(TH));
+    ctx.fillStyle='rgba(0,0,0,0.03)';
     for(const d of this._noiseDots) ctx.fillRect(this.gx(d.x),this.gy(d.y),this.gs(d.s),this.gs(1));
 
-    ctx.fillStyle='#0b6b38';const cw=6;
+    const cw=7;
     for(const c of CUSHIONS){
-      if(c.wall==='top') ctx.fillRect(this.gx(c.min),this.gy(-cw),this.gs(c.max-c.min),this.gs(cw));
-      if(c.wall==='bottom') ctx.fillRect(this.gx(c.min),this.gy(TH),this.gs(c.max-c.min),this.gs(cw));
-      if(c.wall==='left') ctx.fillRect(this.gx(-cw),this.gy(c.min),this.gs(cw),this.gs(c.max-c.min));
-      if(c.wall==='right') ctx.fillRect(this.gx(TW),this.gy(c.min),this.gs(cw),this.gs(c.max-c.min));
+      const cg1='#0b7b42',cg2='#0a6b38';
+      if(c.wall==='top'){
+        const cGr=ctx.createLinearGradient(0,this.gy(-cw),0,this.gy(0));cGr.addColorStop(0,cg1);cGr.addColorStop(1,cg2);
+        ctx.fillStyle=cGr;ctx.fillRect(this.gx(c.min),this.gy(-cw),this.gs(c.max-c.min),this.gs(cw));
+      }
+      if(c.wall==='bottom'){
+        const cGr=ctx.createLinearGradient(0,this.gy(TH),0,this.gy(TH+cw));cGr.addColorStop(0,cg2);cGr.addColorStop(1,cg1);
+        ctx.fillStyle=cGr;ctx.fillRect(this.gx(c.min),this.gy(TH),this.gs(c.max-c.min),this.gs(cw));
+      }
+      if(c.wall==='left'){
+        const cGr=ctx.createLinearGradient(this.gx(-cw),0,this.gx(0),0);cGr.addColorStop(0,cg1);cGr.addColorStop(1,cg2);
+        ctx.fillStyle=cGr;ctx.fillRect(this.gx(-cw),this.gy(c.min),this.gs(cw),this.gs(c.max-c.min));
+      }
+      if(c.wall==='right'){
+        const cGr=ctx.createLinearGradient(this.gx(TW),0,this.gx(TW+cw),0);cGr.addColorStop(0,cg2);cGr.addColorStop(1,cg1);
+        ctx.fillStyle=cGr;ctx.fillRect(this.gx(TW),this.gy(c.min),this.gs(cw),this.gs(c.max-c.min));
+      }
     }
-    ctx.fillStyle='rgba(255,255,255,0.07)';
+    ctx.fillStyle='rgba(255,255,255,0.09)';
     for(const c of CUSHIONS){
-      if(c.wall==='top') ctx.fillRect(this.gx(c.min),this.gy(0),this.gs(c.max-c.min),this.gs(2));
-      if(c.wall==='bottom') ctx.fillRect(this.gx(c.min),this.gy(TH-2),this.gs(c.max-c.min),this.gs(2));
-      if(c.wall==='left') ctx.fillRect(this.gx(0),this.gy(c.min),this.gs(2),this.gs(c.max-c.min));
-      if(c.wall==='right') ctx.fillRect(this.gx(TW-2),this.gy(c.min),this.gs(2),this.gs(c.max-c.min));
+      if(c.wall==='top') ctx.fillRect(this.gx(c.min),this.gy(0),this.gs(c.max-c.min),this.gs(1.5));
+      if(c.wall==='bottom') ctx.fillRect(this.gx(c.min),this.gy(TH-1.5),this.gs(c.max-c.min),this.gs(1.5));
+      if(c.wall==='left') ctx.fillRect(this.gx(0),this.gy(c.min),this.gs(1.5),this.gs(c.max-c.min));
+      if(c.wall==='right') ctx.fillRect(this.gx(TW-1.5),this.gy(c.min),this.gs(1.5),this.gs(c.max-c.min));
     }
 
     for(const p of POCKETS){
-      ctx.fillStyle='#050505';ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+1),0,Math.PI*2);ctx.fill();
-      ctx.strokeStyle='rgba(30,20,8,0.5)';ctx.lineWidth=this.gs(1.5);
-      ctx.beginPath();ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+1),0,Math.PI*2);ctx.stroke();
+      const px=this.gx(p.x),py=this.gy(p.y),pr=this.gs(p.r);
+      // Pocket depth gradient
+      const pg=ctx.createRadialGradient(px,py,pr*0.2,px,py,pr+this.gs(2));
+      pg.addColorStop(0,'#020202');pg.addColorStop(0.6,'#060606');pg.addColorStop(1,'#0a0a0a');
+      ctx.fillStyle=pg;ctx.beginPath();ctx.arc(px,py,pr+this.gs(2),0,Math.PI*2);ctx.fill();
+      // Inner rim
+      ctx.strokeStyle='rgba(60,40,20,0.4)';ctx.lineWidth=this.gs(2);
+      ctx.beginPath();ctx.arc(px,py,pr+this.gs(1),0,Math.PI*2);ctx.stroke();
     }
 
     ctx.fillStyle='#c9a84c';const dSz=3;
@@ -1330,9 +1352,10 @@ class App{
   _updateHUD(){
     if(!this.gameState) return;
     const p0Turn=this.gameState.currentPlayer===0;
+    const isMyTurn=this.gameState.currentPlayer===this.playerIndex;
     document.getElementById('panel-p1').classList.toggle('active-turn',p0Turn);
     document.getElementById('panel-p2').classList.toggle('active-turn',!p0Turn);
-    document.getElementById('turn-text').textContent=my?'Your Turn':"Opponent's Turn";
+    document.getElementById('turn-text').textContent=isMyTurn?'Your Turn':"Opponent's Turn";
     this._renderBallRack('rack-p1',0);
     this._renderBallRack('rack-p2',1);
   }
@@ -1357,8 +1380,8 @@ class App{
   }
 
   _updateScoreDisplay(){
-    document.getElementById('score-display-p1').textContent=this.scores[this.playerIndex];
-    document.getElementById('score-display-p2').textContent=this.scores[1-this.playerIndex];
+    document.getElementById('score-display-p1').textContent=this.scores[0];
+    document.getElementById('score-display-p2').textContent=this.scores[1];
   }
 
   _updateMessage(msg){document.getElementById('game-message').textContent=msg||'';}
