@@ -23,6 +23,8 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 .btn-secondary:hover{background:#253d5c}
 .btn-outline{background:transparent;color:#c9a84c;border:1.5px solid rgba(201,168,76,.4)}
 .btn-outline:hover{border-color:#c9a84c;background:rgba(201,168,76,.08)}
+.btn-danger{background:#e63946;color:#fff}
+.btn-danger:hover{background:#c5303c}
 
 /* ── Lobby ── */
 #lobby .lobby-inner{text-align:center;max-width:400px;padding:30px}
@@ -51,12 +53,12 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 /* ── Game ── */
 #game{padding:8px 12px;justify-content:flex-start;gap:6px;position:relative}
 #hud{display:flex;align-items:center;justify-content:space-between;width:100%;padding:6px 0;flex-shrink:0}
-.player-panel{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;background:#162230;min-width:0;border:1px solid transparent}
+.player-panel{display:flex;align-items:center;gap:10px;padding:8px 14px;border-radius:8px;background:#162230;min-width:0;border:1px solid transparent;transition:all .3s ease}
 .player-panel.active-turn{background:#1a2d40;box-shadow:0 0 12px rgba(201,168,76,.2);border:1px solid rgba(201,168,76,.3)}
 .player-panel .player-name{font-weight:600;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100px}
 .player-panel .player-label{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:#667788}
 .ball-rack{display:flex;gap:3px;flex-wrap:wrap;max-width:130px}
-.ball-rack .mini-ball{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.15);transition:opacity .3s}
+.ball-rack .mini-ball{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:700;color:#fff;border:1px solid rgba(255,255,255,.15);transition:all .3s}
 .ball-rack .mini-ball.pocketed{opacity:.2;transform:scale(.7)}
 .ball-rack .mini-ball.stripe{background:conic-gradient(var(--c) 30%,#fff 30% 70%,var(--c) 70%)}
 #turn-info{text-align:center;flex-shrink:0;min-width:180px}
@@ -80,9 +82,13 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 #pocket-overlay .pocket-hint{color:#c9a84c;font-size:18px;font-family:'Playfair Display',serif;margin-bottom:8px}
 #pocket-overlay .pocket-sub{color:#8899aa;font-size:13px}
 
+/* ── Disconnect overlay ── */
+#disconnect-overlay .disconnect-content{text-align:center;animation:fadeUp .3s ease-out}
+#disconnect-overlay h2{color:#e63946}
+
 /* ── Toast ── */
-#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1e3048;color:#f5f0e8;padding:10px 24px;border-radius:8px;font-size:13px;border:1px solid #2a3a4a;z-index:200;transition:opacity .3s;pointer-events:none}
-#toast.hidden{opacity:0}
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(0);background:#1e3048;color:#f5f0e8;padding:10px 24px;border-radius:8px;font-size:13px;border:1px solid #2a3a4a;z-index:200;transition:all .4s ease;pointer-events:none}
+#toast.hidden{opacity:0;transform:translateX(-50%) translateY(10px)}
 
 /* ── Error ── */
 .error-text{color:#e63946;font-size:13px;margin-top:8px;min-height:18px}
@@ -163,6 +169,15 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
   </div>
 </div>
 
+<!-- Disconnect -->
+<div id="disconnect-overlay" class="overlay">
+  <div class="disconnect-content">
+    <h2>Opponent Disconnected</h2>
+    <p>The connection was lost</p>
+    <button id="btn-back-lobby" class="btn btn-primary">Back to Lobby</button>
+  </div>
+</div>
+
 <div id="toast" class="hidden"></div>
 
 <script>
@@ -171,18 +186,19 @@ h1,h2,h3{font-family:'Playfair Display',Georgia,serif;font-weight:700}
 // ═══════════════════════════════════════════════════════════════════════════════
 const TW = 1000, TH = 500;
 const RAIL = 48;
-const BR = 13;
-const FRICTION = 180;
+const BR = 12.7;
+const FRICTION = 120;
+const FRICTION_ROLL = 60;
 const MAX_POWER = 1500;
 const MIN_POWER = 80;
-const BALL_COR = 0.97;
-const CUSHION_COR = 0.75;
+const BALL_COR = 0.96;
+const CUSHION_COR = 0.72;
 const PHYSICS_HZ = 120;
 const PHYSICS_DT = 1 / PHYSICS_HZ;
 const HEAD_X = TW * 0.25;
 const FOOT_X = TW * 0.75;
 const FOOT_Y = TH * 0.5;
-const STOP_SPEED = 3;
+const STOP_SPEED = 2.5;
 
 const BALL_COLORS = [
   '#E8E0D0', '#F4C430', '#1A5DAD', '#D4382E', '#6B2D7B',
@@ -191,22 +207,22 @@ const BALL_COLORS = [
   '#E06B20', '#1A854A', '#801818'
 ];
 
-const POCKET_R_CORNER = 26;
-const POCKET_R_SIDE = 22;
-const POCKET_INFLUENCE_CORNER = 40;
-const POCKET_INFLUENCE_SIDE = 36;
+const POCKET_R_CORNER = 28;
+const POCKET_R_SIDE = 25;
+const POCKET_IR_CORNER = 44;
+const POCKET_IR_SIDE = 40;
 
 const POCKETS = [
-  { x: 0,  y: 0,  r: POCKET_R_CORNER, ir: POCKET_INFLUENCE_CORNER },
-  { x: TW/2, y: -4, r: POCKET_R_SIDE, ir: POCKET_INFLUENCE_SIDE },
-  { x: TW, y: 0,  r: POCKET_R_CORNER, ir: POCKET_INFLUENCE_CORNER },
-  { x: 0,  y: TH, r: POCKET_R_CORNER, ir: POCKET_INFLUENCE_CORNER },
-  { x: TW/2, y: TH+4, r: POCKET_R_SIDE, ir: POCKET_INFLUENCE_SIDE },
-  { x: TW, y: TH, r: POCKET_R_CORNER, ir: POCKET_INFLUENCE_CORNER },
+  { x: 0,    y: 0,    r: POCKET_R_CORNER, ir: POCKET_IR_CORNER },
+  { x: TW/2, y: -5,   r: POCKET_R_SIDE,   ir: POCKET_IR_SIDE },
+  { x: TW,   y: 0,    r: POCKET_R_CORNER, ir: POCKET_IR_CORNER },
+  { x: 0,    y: TH,   r: POCKET_R_CORNER, ir: POCKET_IR_CORNER },
+  { x: TW/2, y: TH+5, r: POCKET_R_SIDE,   ir: POCKET_IR_SIDE },
+  { x: TW,   y: TH,   r: POCKET_R_CORNER, ir: POCKET_IR_CORNER },
 ];
 
-const CG = 42;
-const SG = 34;
+const CG = 44;
+const SG = 36;
 const CUSHIONS = [
   { wall: 'top',    min: CG,     max: TW/2-SG },
   { wall: 'top',    min: TW/2+SG, max: TW-CG },
@@ -242,6 +258,8 @@ function rayCircle(ox,oy,dx,dy,cx,cy,r){
   const t=(-b-Math.sqrt(disc))/2;
   return t>0.5?t:-1;
 }
+
+function easeOutCubic(t){ return 1-Math.pow(1-t,3); }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // RACK GENERATION
@@ -309,7 +327,7 @@ class Physics{
     this._collideCushions();
     this._checkPockets();
     this._applyFriction(dt);
-    this._clampPositions();
+    this._hardBoundary();
 
     let allStopped=true;
     for(const b of this.balls){
@@ -342,7 +360,7 @@ class Physics{
         const nx=dx/dist, ny=dy/dist;
         const dvx=a.vx-b.vx, dvy=a.vy-b.vy;
         const dvn=dvx*nx+dvy*ny;
-        if(dvn<=0) {
+        if(dvn<=0){
           const overlap=minD-dist;
           if(overlap>0){
             a.x-=overlap/2*nx; a.y-=overlap/2*ny;
@@ -365,30 +383,40 @@ class Physics{
   _collideCushions(){
     for(const b of this.balls){
       if(b.pocketed) continue;
+
+      // If ball is inside a pocket catch zone, let it fall in
+      let inPocketCatch=false;
+      for(const p of POCKETS){
+        if(vDist(b,p)<p.r+BR*0.5){inPocketCatch=true;break;}
+      }
+      if(inPocketCatch) continue;
+
+      // Check if near pocket opening — suppress cushion bounce but not hard boundary
       let nearPocket=false;
       for(const p of POCKETS){
         if(vDist(b,p)<p.ir){nearPocket=true;break;}
       }
-      if(nearPocket) continue;
 
-      for(const c of CUSHIONS){
-        switch(c.wall){
-          case 'top':
-            if(b.y<BR && b.x>=c.min && b.x<=c.max){
-              b.y=BR; b.vy=Math.abs(b.vy)*CUSHION_COR;
-            } break;
-          case 'bottom':
-            if(b.y>TH-BR && b.x>=c.min && b.x<=c.max){
-              b.y=TH-BR; b.vy=-Math.abs(b.vy)*CUSHION_COR;
-            } break;
-          case 'left':
-            if(b.x<BR && b.y>=c.min && b.y<=c.max){
-              b.x=BR; b.vx=Math.abs(b.vx)*CUSHION_COR;
-            } break;
-          case 'right':
-            if(b.x>TW-BR && b.y>=c.min && b.y<=c.max){
-              b.x=TW-BR; b.vx=-Math.abs(b.vx)*CUSHION_COR;
-            } break;
+      if(!nearPocket){
+        for(const c of CUSHIONS){
+          switch(c.wall){
+            case 'top':
+              if(b.y<BR && b.x>=c.min && b.x<=c.max){
+                b.y=BR; b.vy=Math.abs(b.vy)*CUSHION_COR;
+              } break;
+            case 'bottom':
+              if(b.y>TH-BR && b.x>=c.min && b.x<=c.max){
+                b.y=TH-BR; b.vy=-Math.abs(b.vy)*CUSHION_COR;
+              } break;
+            case 'left':
+              if(b.x<BR && b.y>=c.min && b.y<=c.max){
+                b.x=BR; b.vx=Math.abs(b.vx)*CUSHION_COR;
+              } break;
+            case 'right':
+              if(b.x>TW-BR && b.y>=c.min && b.y<=c.max){
+                b.x=TW-BR; b.vx=-Math.abs(b.vx)*CUSHION_COR;
+              } break;
+          }
         }
       }
     }
@@ -408,7 +436,7 @@ class Physics{
           this.pocketAnimations.push({
             id:b.id, color:BALL_COLORS[b.id],
             sx:b.x, sy:b.y, tx:p.x, ty:p.y,
-            start:performance.now(), dur:280
+            start:performance.now(), dur:300
           });
           break;
         }
@@ -421,31 +449,45 @@ class Physics{
       if(b.pocketed) continue;
       const sp=vLen(b.vx,b.vy);
       if(sp>0){
-        const dec=FRICTION*dt;
+        // Speed-dependent friction: higher at low speeds (rolling), lower at high speeds (sliding)
+        const slideFrac=clamp(sp/400,0,1);
+        const fric=lerp(FRICTION+FRICTION_ROLL, FRICTION, slideFrac);
+        const dec=fric*dt;
         if(dec>=sp){b.vx=0;b.vy=0;}
         else{const f=(sp-dec)/sp;b.vx*=f;b.vy*=f;}
       }
     }
   }
 
-  _clampPositions(){
+  // Absolute boundary — no ball can exist outside the table
+  _hardBoundary(){
     for(const b of this.balls){
       if(b.pocketed) continue;
-      const margin=BR+40;
-      if(b.x<-margin||b.x>TW+margin||b.y<-margin||b.y>TH+margin){
-        let best=Infinity,bi=-1;
+      const margin=BR+2;
+
+      // If ball is beyond the playing surface + small margin
+      if(b.x < -margin || b.x > TW+margin || b.y < -margin || b.y > TH+margin){
+        // Find nearest pocket — if close enough, pocket it
+        let bestD=Infinity, bestP=-1;
         for(let i=0;i<POCKETS.length;i++){
           const d=vDist(b,POCKETS[i]);
-          if(d<best){best=d;bi=i;}
+          if(d<bestD){bestD=d;bestP=i;}
         }
-        if(best<POCKETS[bi].r*2.5){
+        if(bestD < POCKETS[bestP].ir * 1.5){
           b.pocketed=true;b.vx=0;b.vy=0;
-          this.pocketed.push({id:b.id,pocket:bi});
+          this.pocketed.push({id:b.id,pocket:bestP});
           if(b.id===0) this.cuePocketed=true;
+          this.pocketAnimations.push({
+            id:b.id, color:BALL_COLORS[b.id],
+            sx:b.x, sy:b.y, tx:POCKETS[bestP].x, ty:POCKETS[bestP].y,
+            start:performance.now(), dur:250
+          });
         } else {
-          b.x=clamp(b.x,BR,TW-BR);
-          b.y=clamp(b.y,BR,TH-BR);
-          b.vx=0;b.vy=0;
+          // Force back onto the table
+          if(b.x<0){b.x=BR;b.vx=Math.abs(b.vx)*0.3;}
+          if(b.x>TW){b.x=TW-BR;b.vx=-Math.abs(b.vx)*0.3;}
+          if(b.y<0){b.y=BR;b.vy=Math.abs(b.vy)*0.3;}
+          if(b.y>TH){b.y=TH-BR;b.vy=-Math.abs(b.vy)*0.3;}
         }
       }
     }
@@ -453,6 +495,52 @@ class Physics{
 
   getPositions(){
     return this.balls.map(b=>({id:b.id,x:b.x,y:b.y,pocketed:b.pocketed}));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PARTICLE SYSTEM
+// ═══════════════════════════════════════════════════════════════════════════════
+class Particles{
+  constructor(){this.list=[];}
+
+  emit(x,y,color,count=10){
+    for(let i=0;i<count;i++){
+      const angle=Math.random()*Math.PI*2;
+      const speed=40+Math.random()*80;
+      this.list.push({
+        x,y,
+        vx:Math.cos(angle)*speed,
+        vy:Math.sin(angle)*speed,
+        life:1,
+        color,
+        r:1.5+Math.random()*3,
+        decay:0.6+Math.random()*0.8
+      });
+    }
+  }
+
+  update(dt){
+    for(let i=this.list.length-1;i>=0;i--){
+      const p=this.list[i];
+      p.x+=p.vx*dt;
+      p.y+=p.vy*dt;
+      p.vx*=0.96;
+      p.vy*=0.96;
+      p.life-=p.decay*dt;
+      if(p.life<=0) this.list.splice(i,1);
+    }
+  }
+
+  draw(ctx,gx,gy,gs){
+    for(const p of this.list){
+      ctx.globalAlpha=p.life*0.8;
+      ctx.fillStyle=p.color;
+      ctx.beginPath();
+      ctx.arc(gx(p.x),gy(p.y),gs(p.r*p.life),0,Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha=1;
   }
 }
 
@@ -466,7 +554,7 @@ class Renderer{
     this.scale=1;
     this.W=0; this.H=0;
     this._noiseDots=[];
-    for(let i=0;i<120;i++) this._noiseDots.push({x:Math.random()*TW,y:Math.random()*TH});
+    for(let i=0;i<150;i++) this._noiseDots.push({x:Math.random()*TW,y:Math.random()*TH,s:1+Math.random()*2});
     this._resize();
     window.addEventListener('resize',()=>this._resize());
   }
@@ -502,9 +590,10 @@ class Renderer{
     ctx.clearRect(0,0,this.W,this.H);
     this._drawTable(ctx);
     this._drawBalls(ctx,state.balls,state.pocketAnims);
+    if(state.particles) state.particles.draw(ctx,this.gx.bind(this),this.gy.bind(this),this.gs.bind(this));
     if(state.aimAngle!==null && state.canShoot && !state.placingCue)
       this._drawGuide(ctx,state);
-    if(state.cueVisible && state.aimAngle!==null && !state.placingCue)
+    if(state.cueVisible && state.aimAngle!==null && !state.placingCue && state.canShoot)
       this._drawCue(ctx,state);
     if(state.placingCue) this._drawPlacementZone(ctx,state);
     if(state.callingPocket) this._drawPocketCall(ctx,state.hoverPocket);
@@ -516,48 +605,90 @@ class Renderer{
 
   _drawTable(ctx){
     const s=this.scale;
-    // Outer frame
-    ctx.fillStyle='#2a1506';
+
+    // Outer frame shadow
+    ctx.fillStyle='#1a0d03';
     ctx.fillRect(0,0,this.W,this.H);
-    // Inner rail wood
+
+    // Outer frame
+    const grad=ctx.createLinearGradient(0,0,0,this.H);
+    grad.addColorStop(0,'#3d2510');
+    grad.addColorStop(0.5,'#2a1506');
+    grad.addColorStop(1,'#1e0f04');
+    ctx.fillStyle=grad;
+    ctx.fillRect(2*s,2*s,this.W-4*s,this.H-4*s);
+
+    // Inner rail wood with bevel
     const ri=8*s;
-    ctx.fillStyle='#3d200a';
+    const railGrad=ctx.createLinearGradient(ri,ri,ri,this.H-ri);
+    railGrad.addColorStop(0,'#4a2810');
+    railGrad.addColorStop(0.3,'#3d200a');
+    railGrad.addColorStop(0.7,'#3d200a');
+    railGrad.addColorStop(1,'#2a1506');
+    ctx.fillStyle=railGrad;
     ctx.fillRect(ri,ri,this.W-2*ri,this.H-2*ri);
 
+    // Rail edge highlight
+    ctx.strokeStyle='rgba(255,200,100,0.08)';
+    ctx.lineWidth=1;
+    ctx.strokeRect(ri+1,ri+1,this.W-2*ri-2,this.H-2*ri-2);
+
     // Felt
-    ctx.fillStyle='#0e7a42';
+    const feltGrad=ctx.createRadialGradient(this.W/2,this.H/2,0,this.W/2,this.H/2,this.W*0.6);
+    feltGrad.addColorStop(0,'#0f8045');
+    feltGrad.addColorStop(1,'#0a6b38');
+    ctx.fillStyle=feltGrad;
     ctx.fillRect(this.gx(0),this.gy(0),this.gs(TW),this.gs(TH));
 
-    // Felt texture (subtle noise)
-    ctx.fillStyle='rgba(0,0,0,0.04)';
+    // Felt texture
+    ctx.fillStyle='rgba(0,0,0,0.035)';
     for(const d of this._noiseDots){
-      ctx.fillRect(this.gx(d.x),this.gy(d.y),this.gs(3),this.gs(1));
+      ctx.fillRect(this.gx(d.x),this.gy(d.y),this.gs(d.s),this.gs(1));
     }
 
     // Cushion edges
     ctx.fillStyle='#0b6b38';
-    const cw=5;
+    const cw=6;
     for(const c of CUSHIONS){
       if(c.wall==='top') ctx.fillRect(this.gx(c.min),this.gy(-cw),this.gs(c.max-c.min),this.gs(cw));
       if(c.wall==='bottom') ctx.fillRect(this.gx(c.min),this.gy(TH),this.gs(c.max-c.min),this.gs(cw));
       if(c.wall==='left') ctx.fillRect(this.gx(-cw),this.gy(c.min),this.gs(cw),this.gs(c.max-c.min));
       if(c.wall==='right') ctx.fillRect(this.gx(TW),this.gy(c.min),this.gs(cw),this.gs(c.max-c.min));
     }
-    // Cushion highlights
-    ctx.fillStyle='rgba(255,255,255,0.06)';
+
+    // Cushion face highlights
+    ctx.fillStyle='rgba(255,255,255,0.07)';
     for(const c of CUSHIONS){
-      if(c.wall==='top') ctx.fillRect(this.gx(c.min),this.gy(0),this.gs(c.max-c.min),this.gs(1.5));
-      if(c.wall==='bottom') ctx.fillRect(this.gx(c.min),this.gy(TH-1.5),this.gs(c.max-c.min),this.gs(1.5));
-      if(c.wall==='left') ctx.fillRect(this.gx(0),this.gy(c.min),this.gs(1.5),this.gs(c.max-c.min));
-      if(c.wall==='right') ctx.fillRect(this.gx(TW-1.5),this.gy(c.min),this.gs(1.5),this.gs(c.max-c.min));
+      if(c.wall==='top') ctx.fillRect(this.gx(c.min),this.gy(0),this.gs(c.max-c.min),this.gs(2));
+      if(c.wall==='bottom') ctx.fillRect(this.gx(c.min),this.gy(TH-2),this.gs(c.max-c.min),this.gs(2));
+      if(c.wall==='left') ctx.fillRect(this.gx(0),this.gy(c.min),this.gs(2),this.gs(c.max-c.min));
+      if(c.wall==='right') ctx.fillRect(this.gx(TW-2),this.gy(c.min),this.gs(2),this.gs(c.max-c.min));
     }
 
-    // Pocket holes (drawn after rails so they aren't clipped)
-    ctx.fillStyle='#080808';
+    // Pocket holes — drawn on top of everything
     for(const p of POCKETS){
+      // Pocket shadow/glow
+      const pgr=ctx.createRadialGradient(this.gx(p.x),this.gy(p.y),this.gs(p.r*0.3),this.gx(p.x),this.gy(p.y),this.gs(p.r+10));
+      pgr.addColorStop(0,'#050505');
+      pgr.addColorStop(0.7,'#080808');
+      pgr.addColorStop(1,'rgba(8,8,8,0)');
+      ctx.fillStyle=pgr;
       ctx.beginPath();
-      ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+6),0,Math.PI*2);
+      ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+10),0,Math.PI*2);
       ctx.fill();
+
+      // Pocket hole
+      ctx.fillStyle='#060606';
+      ctx.beginPath();
+      ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+4),0,Math.PI*2);
+      ctx.fill();
+
+      // Inner rim
+      ctx.strokeStyle='rgba(40,25,10,0.6)';
+      ctx.lineWidth=this.gs(2);
+      ctx.beginPath();
+      ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(p.r+3),0,Math.PI*2);
+      ctx.stroke();
     }
 
     // Diamond sights
@@ -566,16 +697,16 @@ class Renderer{
     const topDiamonds=[TW*0.125,TW*0.25,TW*0.375,TW*0.625,TW*0.75,TW*0.875];
     const sideDiamonds=[TH*0.25,TH*0.5,TH*0.75];
     for(const dx of topDiamonds){
-      ctx.beginPath();ctx.arc(this.gx(dx),this.gy(-RAIL/2+4),this.gs(dSize),0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.arc(this.gx(dx),this.gy(TH+RAIL/2-4),this.gs(dSize),0,Math.PI*2);ctx.fill();
+      this._drawDiamond(ctx,this.gx(dx),this.gy(-RAIL/2+4),this.gs(dSize));
+      this._drawDiamond(ctx,this.gx(dx),this.gy(TH+RAIL/2-4),this.gs(dSize));
     }
     for(const dy of sideDiamonds){
-      ctx.beginPath();ctx.arc(this.gx(-RAIL/2+4),this.gy(dy),this.gs(dSize),0,Math.PI*2);ctx.fill();
-      ctx.beginPath();ctx.arc(this.gx(TW+RAIL/2-4),this.gy(dy),this.gs(dSize),0,Math.PI*2);ctx.fill();
+      this._drawDiamond(ctx,this.gx(-RAIL/2+4),this.gy(dy),this.gs(dSize));
+      this._drawDiamond(ctx,this.gx(TW+RAIL/2-4),this.gy(dy),this.gs(dSize));
     }
 
     // Head string
-    ctx.strokeStyle='rgba(255,255,255,0.1)';
+    ctx.strokeStyle='rgba(255,255,255,0.08)';
     ctx.lineWidth=this.gs(1);
     ctx.setLineDash([this.gs(6),this.gs(6)]);
     ctx.beginPath();
@@ -585,19 +716,40 @@ class Renderer{
     ctx.setLineDash([]);
 
     // Foot spot
-    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.fillStyle='rgba(255,255,255,0.15)';
     ctx.beginPath();
     ctx.arc(this.gx(FOOT_X),this.gy(FOOT_Y),this.gs(3),0,Math.PI*2);
     ctx.fill();
+  }
+
+  _drawDiamond(ctx,x,y,r){
+    ctx.save();
+    ctx.fillStyle='#c9a84c';
+    ctx.beginPath();
+    ctx.moveTo(x,y-r);
+    ctx.lineTo(x+r*0.7,y);
+    ctx.lineTo(x,y+r);
+    ctx.lineTo(x-r*0.7,y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,0.2)';
+    ctx.beginPath();
+    ctx.moveTo(x,y-r);
+    ctx.lineTo(x+r*0.7,y);
+    ctx.lineTo(x,y+r);
+    ctx.lineTo(x-r*0.7,y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.restore();
   }
 
   _drawBalls(ctx,balls,anims){
     // Shadows
     for(const b of balls){
       if(b.pocketed) continue;
-      ctx.fillStyle='rgba(0,0,0,0.25)';
+      ctx.fillStyle='rgba(0,0,0,0.3)';
       ctx.beginPath();
-      ctx.ellipse(this.gx(b.x+2),this.gy(b.y+3),this.gs(BR),this.gs(BR*0.7),0,0,Math.PI*2);
+      ctx.ellipse(this.gx(b.x+2),this.gy(b.y+3),this.gs(BR*0.95),this.gs(BR*0.65),0,0,Math.PI*2);
       ctx.fill();
     }
     // Balls
@@ -612,8 +764,9 @@ class Renderer{
         const a=anims[i];
         const t=clamp((now-a.start)/a.dur,0,1);
         if(t>=1){anims.splice(i,1);continue;}
-        const x=lerp(a.sx,a.tx,t), y=lerp(a.sy,a.ty,t);
-        const sc=1-t*0.6, al=1-t;
+        const et=easeOutCubic(t);
+        const x=lerp(a.sx,a.tx,et), y=lerp(a.sy,a.ty,et);
+        const sc=1-et*0.7, al=1-et*0.8;
         this._drawBall(ctx,x,y,a.id,sc,al);
       }
     }
@@ -637,7 +790,7 @@ class Renderer{
       ctx.fillStyle='#FFFEF6';
       ctx.fillRect(cx-r,cy-r,r*2,r*2);
       ctx.fillStyle=color;
-      const sh=r*0.75;
+      const sh=r*0.72;
       ctx.fillRect(cx-r,cy-sh/2,r*2,sh);
     } else {
       ctx.fillStyle=(id===0)?'#FFFEF6':color;
@@ -646,27 +799,32 @@ class Renderer{
 
     // 3D shading
     const grad=ctx.createRadialGradient(cx-r*0.3,cy-r*0.3,r*0.1,cx,cy,r);
-    grad.addColorStop(0,'rgba(255,255,255,0.25)');
-    grad.addColorStop(0.6,'rgba(255,255,255,0)');
-    grad.addColorStop(1,'rgba(0,0,0,0.3)');
+    grad.addColorStop(0,'rgba(255,255,255,0.3)');
+    grad.addColorStop(0.5,'rgba(255,255,255,0)');
+    grad.addColorStop(1,'rgba(0,0,0,0.35)');
     ctx.fillStyle=grad;
     ctx.fillRect(cx-r,cy-r,r*2,r*2);
 
-    // Number circle (not for cue ball)
+    // Number circle
     if(id!==0){
-      const nr=r*0.42;
+      const nr=r*0.40;
       ctx.fillStyle='#FFFEF6';
       ctx.beginPath();ctx.arc(cx,cy,nr,0,Math.PI*2);ctx.fill();
       ctx.fillStyle=(id===8)?'#111':'#333';
-      ctx.font=`bold ${Math.round(r*0.55)}px Inter,sans-serif`;
+      ctx.font=`bold ${Math.round(r*0.52)}px Inter,sans-serif`;
       ctx.textAlign='center';ctx.textBaseline='middle';
       ctx.fillText(id.toString(),cx,cy+0.5);
     }
 
     // Specular highlight
-    ctx.fillStyle='rgba(255,255,255,0.45)';
+    ctx.fillStyle='rgba(255,255,255,0.5)';
     ctx.beginPath();
-    ctx.arc(cx-r*0.28,cy-r*0.28,r*0.18,0,Math.PI*2);
+    ctx.arc(cx-r*0.28,cy-r*0.28,r*0.16,0,Math.PI*2);
+    ctx.fill();
+    // Secondary highlight
+    ctx.fillStyle='rgba(255,255,255,0.12)';
+    ctx.beginPath();
+    ctx.arc(cx+r*0.15,cy-r*0.35,r*0.08,0,Math.PI*2);
     ctx.fill();
 
     ctx.restore();
@@ -688,18 +846,18 @@ class Renderer{
     ctx.save();
     if(hitBall){
       const gx=cue.x+dx*minT, gy=cue.y+dy*minT;
-      // Aim line to ghost
-      ctx.strokeStyle='rgba(255,255,255,0.25)';
-      ctx.lineWidth=this.gs(1);
-      ctx.setLineDash([this.gs(4),this.gs(4)]);
+      // Aim line to ghost — bright and visible
+      ctx.strokeStyle='rgba(255,255,255,0.85)';
+      ctx.lineWidth=this.gs(1.5);
+      ctx.setLineDash([this.gs(6),this.gs(4)]);
       ctx.beginPath();
       ctx.moveTo(this.gx(cue.x),this.gy(cue.y));
       ctx.lineTo(this.gx(gx),this.gy(gy));
       ctx.stroke();
 
       // Ghost ball
-      ctx.strokeStyle='rgba(255,255,255,0.12)';
-      ctx.lineWidth=this.gs(1);
+      ctx.strokeStyle='rgba(255,255,255,0.6)';
+      ctx.lineWidth=this.gs(1.5);
       ctx.setLineDash([]);
       ctx.beginPath();
       ctx.arc(this.gx(gx),this.gy(gy),this.gs(BR),0,Math.PI*2);
@@ -709,10 +867,10 @@ class Renderer{
       const dd=vLen(hitBall.x-gx,hitBall.y-gy);
       if(dd>0.01){
         const tnx=(hitBall.x-gx)/dd, tny=(hitBall.y-gy)/dd;
-        const tLen=55;
-        ctx.strokeStyle='rgba(255,255,255,0.3)';
-        ctx.lineWidth=this.gs(1.2);
-        ctx.setLineDash([this.gs(3),this.gs(3)]);
+        const tLen=65;
+        ctx.strokeStyle='rgba(255,255,255,0.7)';
+        ctx.lineWidth=this.gs(1.5);
+        ctx.setLineDash([this.gs(4),this.gs(4)]);
         ctx.beginPath();
         ctx.moveTo(this.gx(hitBall.x),this.gy(hitBall.y));
         ctx.lineTo(this.gx(hitBall.x+tnx*tLen),this.gy(hitBall.y+tny*tLen));
@@ -723,9 +881,9 @@ class Renderer{
         const tx2=dx-dot*tnx, ty2=dy-dot*tny;
         const tl=vLen(tx2,ty2);
         if(tl>0.05){
-          const dLen=35;
-          ctx.strokeStyle='rgba(255,255,255,0.15)';
-          ctx.lineWidth=this.gs(1);
+          const dLen=45;
+          ctx.strokeStyle='rgba(255,255,255,0.5)';
+          ctx.lineWidth=this.gs(1.2);
           ctx.beginPath();
           ctx.moveTo(this.gx(gx),this.gy(gy));
           ctx.lineTo(this.gx(gx+(tx2/tl)*dLen),this.gy(gy+(ty2/tl)*dLen));
@@ -733,7 +891,6 @@ class Renderer{
         }
       }
     } else {
-      // No ball hit — line to cushion
       let tMax=1200;
       if(dx>0) tMax=Math.min(tMax,(TW-BR-cue.x)/dx);
       else if(dx<0) tMax=Math.min(tMax,(BR-cue.x)/dx);
@@ -741,9 +898,9 @@ class Renderer{
       else if(dy<0) tMax=Math.min(tMax,(BR-cue.y)/dy);
       tMax=Math.max(tMax,0);
 
-      ctx.strokeStyle='rgba(255,255,255,0.2)';
-      ctx.lineWidth=this.gs(1);
-      ctx.setLineDash([this.gs(4),this.gs(4)]);
+      ctx.strokeStyle='rgba(255,255,255,0.8)';
+      ctx.lineWidth=this.gs(1.5);
+      ctx.setLineDash([this.gs(6),this.gs(4)]);
       ctx.beginPath();
       ctx.moveTo(this.gx(cue.x),this.gy(cue.y));
       ctx.lineTo(this.gx(cue.x+dx*tMax),this.gy(cue.y+dy*tMax));
@@ -767,7 +924,7 @@ class Renderer{
 
     ctx.save();
     // Cue shadow
-    ctx.strokeStyle='rgba(0,0,0,0.2)';
+    ctx.strokeStyle='rgba(0,0,0,0.25)';
     ctx.lineWidth=this.gs(7);
     ctx.lineCap='round';
     ctx.beginPath();
@@ -779,16 +936,27 @@ class Renderer{
     const grad=ctx.createLinearGradient(this.gx(sx),this.gy(sy),this.gx(ex),this.gy(ey));
     grad.addColorStop(0,'#F5E6C8');
     grad.addColorStop(0.03,'#E8D5B0');
-    grad.addColorStop(0.6,'#C4A265');
+    grad.addColorStop(0.55,'#C4A265');
+    grad.addColorStop(0.58,'#8B5E3C');
     grad.addColorStop(0.62,'#2a1506');
     grad.addColorStop(0.68,'#2a1506');
     grad.addColorStop(0.7,'#1a0f04');
     grad.addColorStop(1,'#1a0f04');
     ctx.strokeStyle=grad;
     ctx.lineWidth=this.gs(5);
+    ctx.lineCap='round';
     ctx.beginPath();
     ctx.moveTo(this.gx(sx),this.gy(sy));
     ctx.lineTo(this.gx(ex),this.gy(ey));
+    ctx.stroke();
+
+    // Ferrule
+    ctx.strokeStyle='#E8E0D0';
+    ctx.lineWidth=this.gs(4.5);
+    const ferLen=8;
+    ctx.beginPath();
+    ctx.moveTo(this.gx(sx),this.gy(sy));
+    ctx.lineTo(this.gx(sx-Math.cos(angle)*ferLen),this.gy(sy-Math.sin(angle)*ferLen));
     ctx.stroke();
 
     // Tip
@@ -800,22 +968,41 @@ class Renderer{
   }
 
   _drawPlacementZone(ctx,state){
+    // Highlight zone
     ctx.fillStyle='rgba(201,168,76,0.06)';
     ctx.fillRect(this.gx(0),this.gy(0),this.gs(HEAD_X),this.gs(TH));
-    ctx.strokeStyle='rgba(201,168,76,0.25)';
-    ctx.lineWidth=this.gs(1.5);
-    ctx.setLineDash([this.gs(6),this.gs(4)]);
+
+    // Animated border
+    const t=(performance.now()/1000)%2;
+    const alpha=0.15+0.1*Math.sin(t*Math.PI);
+    ctx.strokeStyle=`rgba(201,168,76,${alpha})`;
+    ctx.lineWidth=this.gs(2);
+    ctx.setLineDash([this.gs(8),this.gs(5)]);
+    ctx.lineDashOffset=-performance.now()/50;
     ctx.beginPath();
     ctx.moveTo(this.gx(HEAD_X),this.gy(0));
     ctx.lineTo(this.gx(HEAD_X),this.gy(TH));
     ctx.stroke();
     ctx.setLineDash([]);
+    ctx.lineDashOffset=0;
 
+    // Placement indicator
     if(state.placeCuePos){
       ctx.strokeStyle='rgba(201,168,76,0.5)';
       ctx.lineWidth=this.gs(1.5);
       ctx.beginPath();
-      ctx.arc(this.gx(state.placeCuePos.x),this.gy(state.placeCuePos.y),this.gs(BR),0,Math.PI*2);
+      ctx.arc(this.gx(state.placeCuePos.x),this.gy(state.placeCuePos.y),this.gs(BR+3),0,Math.PI*2);
+      ctx.stroke();
+
+      // Crosshair
+      const cr=BR+8;
+      ctx.strokeStyle='rgba(201,168,76,0.25)';
+      ctx.lineWidth=this.gs(1);
+      ctx.beginPath();
+      ctx.moveTo(this.gx(state.placeCuePos.x-cr),this.gy(state.placeCuePos.y));
+      ctx.lineTo(this.gx(state.placeCuePos.x+cr),this.gy(state.placeCuePos.y));
+      ctx.moveTo(this.gx(state.placeCuePos.x),this.gy(state.placeCuePos.y-cr));
+      ctx.lineTo(this.gx(state.placeCuePos.x),this.gy(state.placeCuePos.y+cr));
       ctx.stroke();
     }
   }
@@ -824,9 +1011,10 @@ class Renderer{
     for(let i=0;i<POCKETS.length;i++){
       const p=POCKETS[i];
       const isHover=hoverIdx===i;
+      const pulse=isHover?1:0.5+0.15*Math.sin(performance.now()/400);
       ctx.beginPath();
-      ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(isHover?32:26),0,Math.PI*2);
-      ctx.fillStyle=isHover?'rgba(201,168,76,0.45)':'rgba(201,168,76,0.18)';
+      ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(isHover?34:28),0,Math.PI*2);
+      ctx.fillStyle=isHover?`rgba(201,168,76,${0.45*pulse})`:`rgba(201,168,76,${0.15*pulse})`;
       ctx.fill();
       ctx.strokeStyle=isHover?'#c9a84c':'rgba(201,168,76,0.5)';
       ctx.lineWidth=this.gs(2);
@@ -837,9 +1025,10 @@ class Renderer{
   _drawCalledPocket(ctx,pi){
     if(pi<0||pi>=POCKETS.length) return;
     const p=POCKETS[pi];
+    const pulse=0.4+0.2*Math.sin(performance.now()/300);
     ctx.beginPath();
-    ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(28),0,Math.PI*2);
-    ctx.strokeStyle='rgba(78,205,196,0.6)';
+    ctx.arc(this.gx(p.x),this.gy(p.y),this.gs(30),0,Math.PI*2);
+    ctx.strokeStyle=`rgba(78,205,196,${pulse})`;
     ctx.lineWidth=this.gs(2.5);
     ctx.stroke();
   }
@@ -848,26 +1037,49 @@ class Renderer{
     const cue=state.balls.find(b=>b.id===0);
     if(!cue) return;
     const frac=state.powerFrac;
-    const barW=6, barH=80;
-    const bx=cue.x+30, by=cue.y-barH/2;
-    ctx.fillStyle='rgba(0,0,0,0.3)';
-    ctx.fillRect(this.gx(bx),this.gy(by),this.gs(barW),this.gs(barH));
+    const barW=7, barH=85;
+    const bx=cue.x+32, by=cue.y-barH/2;
 
-    const color=frac<0.5?'#4ecdc4':frac<0.8?'#f4c430':'#e63946';
-    ctx.fillStyle=color;
+    // Background
+    ctx.fillStyle='rgba(0,0,0,0.4)';
+    const r=this.gs(3);
+    this._roundRect(ctx,this.gx(bx),this.gy(by),this.gs(barW),this.gs(barH),r);
+    ctx.fill();
+
+    // Fill
+    const color=frac<0.4?'#4ecdc4':frac<0.7?'#f4c430':'#e63946';
     const filled=barH*frac;
-    ctx.fillRect(this.gx(bx),this.gy(by+barH-filled),this.gs(barW),this.gs(filled));
+    ctx.fillStyle=color;
+    ctx.fillRect(this.gx(bx+0.5),this.gy(by+barH-filled+0.5),this.gs(barW-1),this.gs(filled-1));
 
-    ctx.strokeStyle='rgba(255,255,255,0.3)';
+    // Glow
+    ctx.shadowColor=color;
+    ctx.shadowBlur=this.gs(6);
+    ctx.fillRect(this.gx(bx+1),this.gy(by+barH-filled+1),this.gs(barW-2),this.gs(filled-2));
+    ctx.shadowBlur=0;
+
+    // Border
+    ctx.strokeStyle='rgba(255,255,255,0.25)';
     ctx.lineWidth=this.gs(1);
-    ctx.strokeRect(this.gx(bx),this.gy(by),this.gs(barW),this.gs(barH));
+    this._roundRect(ctx,this.gx(bx),this.gy(by),this.gs(barW),this.gs(barH),r);
+    ctx.stroke();
+  }
+
+  _roundRect(ctx,x,y,w,h,r){
+    ctx.beginPath();
+    ctx.moveTo(x+r,y);
+    ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+    ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+    ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+    ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);
+    ctx.closePath();
   }
 
   getPocketAtScreen(sx,sy){
     const g=this.toGame(sx,sy);
     for(let i=0;i<POCKETS.length;i++){
       const p=POCKETS[i];
-      if(vDist(g,p)<35) return i;
+      if(vDist(g,p)<40) return i;
     }
     return -1;
   }
@@ -890,23 +1102,18 @@ function processShot(state,result){
   const nonCue=pocketed.filter(p=>p.id!==0);
   const pIds=nonCue.map(p=>p.id);
 
-  // Foul: cue pocketed
   if(cuePocketed) foul=true;
-  // Foul: no ball hit
   if(firstHit===null&&!cuePocketed) foul=true;
-  // Foul: wrong group hit first
   if(!foul&&firstHit!==null&&s.assignments[s.currentPlayer]){
     const hg=getGroup(firstHit);
     if(hg&&hg!==s.assignments[s.currentPlayer]&&firstHit!==8) foul=true;
   }
 
-  // Record pocketed
   for(const id of pIds) if(!s.allPocketed.includes(id)) s.allPocketed.push(id);
 
   const eightSunk=pIds.includes(8);
   const eightPocket=eightSunk?pocketed.find(p=>p.id===8).pocket:null;
 
-  // 8-ball sunk
   if(eightSunk){
     if(s.phase==='break'){
       return{state:{...s,phase:'over',winner:s.currentPlayer},msg:'8-ball on the break — Win!',gameOver:true,winner:s.currentPlayer};
@@ -928,7 +1135,6 @@ function processShot(state,result){
     }
   }
 
-  // Assign groups on first legal pocket after break
   if(!s.assignments[s.currentPlayer]&&pIds.length>0&&!foul){
     const firstGroupBall=pIds.find(id=>getGroup(id));
     if(firstGroupBall){
@@ -940,7 +1146,6 @@ function processShot(state,result){
   }
   if(s.phase==='break') s.phase='play';
 
-  // Turn logic
   if(foul){
     switchTurn=true;
     msg=cuePocketed?'Scratch! Ball behind the line.':'Foul! Ball behind the line.';
@@ -1021,9 +1226,11 @@ class Network{
   }
 
   destroy(){
-    if(this.conn) this.conn.close();
-    if(this.peer) this.peer.destroy();
+    if(this.conn) try{this.conn.close();}catch(e){}
+    if(this.peer) try{this.peer.destroy();}catch(e){}
     this.connected=false;
+    this.conn=null;
+    this.peer=null;
   }
 }
 
@@ -1035,6 +1242,7 @@ class App{
     this.net=null;
     this.renderer=null;
     this.physics=null;
+    this.particles=new Particles();
     this.playerIndex=-1;
     this.scores=[0,0];
     this.gameState=null;
@@ -1080,6 +1288,7 @@ class App{
       navigator.clipboard.writeText(url).then(()=>this._toast('Link copied!'));
     };
     document.getElementById('btn-rematch').onclick=()=>this._requestRematch();
+    document.getElementById('btn-back-lobby').onclick=()=>this._resetToLobby();
   }
 
   _bindCanvas(){
@@ -1088,7 +1297,6 @@ class App{
     c.addEventListener('mousedown',e=>this._onMouseDown(e));
     c.addEventListener('mouseup',e=>this._onMouseUp(e));
     c.addEventListener('mouseleave',e=>{if(this.aiming){this.aiming=false;this.powerFrac=0;}});
-    // Touch
     c.addEventListener('touchmove',e=>{e.preventDefault();this._onMouseMove(e.touches[0]);},{passive:false});
     c.addEventListener('touchstart',e=>{e.preventDefault();this._onMouseDown(e.touches[0]);},{passive:false});
     c.addEventListener('touchend',e=>{e.preventDefault();this._onMouseUp(e);},{passive:false});
@@ -1155,6 +1363,7 @@ class App{
         cue.pocketed=false;
         cue.vx=0;cue.vy=0;
         this.placingCue=false;
+        this.cueVisible=true;
         this.net.send('place-cue',{x:cue.x,y:cue.y});
         this.canShoot=true;
         this._updateMessage('Your turn — aim and shoot');
@@ -1266,6 +1475,7 @@ class App{
     const balls=data.balls.map(b=>({id:b.id,x:b.x,y:b.y,vx:0,vy:0,pocketed:false}));
     this.physics=new Physics(balls);
     this.pocketAnims=[];
+    this.particles=new Particles();
 
     if(!this.gameState){
       this.gameState={
@@ -1281,11 +1491,22 @@ class App{
 
     this.calledPocket=null;
     this.callingPocket=false;
-    this.placingCue=false;
     this.cueVisible=true;
-    this.canShoot=(this.gameState.currentPlayer===this.playerIndex);
     this.aimAngle=0;
     this.powerFrac=0;
+
+    const isMyBreak=(this.gameState.currentPlayer===this.playerIndex);
+
+    // Break player gets to place cue ball behind head string
+    if(isMyBreak){
+      this.placingCue=true;
+      this.canShoot=false;
+      const cue=this.physics.balls.find(b=>b.id===0);
+      this.placeCuePos={x:cue.x,y:cue.y};
+    } else {
+      this.placingCue=false;
+      this.canShoot=false;
+    }
 
     this._showScreen('game');
     requestAnimationFrame(()=>this.renderer._resize());
@@ -1305,7 +1526,6 @@ class App{
     this._shotProcessed=false;
     this._shotQueued=true;
     this._updateMessage('Opponent is shooting...');
-    // Sync ball positions from shooter
     if(data.balls){
       for(const bd of data.balls){
         const b=this.physics.balls.find(x=>x.id===bd.id);
@@ -1316,7 +1536,6 @@ class App{
   }
 
   _onShotEnd(data){
-    // Apply authoritative final positions from shooter
     for(const bd of data.balls){
       const b=this.physics.balls.find(x=>x.id===bd.id);
       if(b){b.x=bd.x;b.y=bd.y;b.pocketed=bd.pocketed;b.vx=0;b.vy=0;}
@@ -1334,8 +1553,45 @@ class App{
   }
 
   _onDisconnect(){
-    this._toast('Opponent disconnected');
     this.canShoot=false;
+    document.getElementById('disconnect-overlay').classList.add('active');
+  }
+
+  _resetToLobby(){
+    // Close all overlays
+    document.querySelectorAll('.overlay').forEach(o=>o.classList.remove('active'));
+
+    // Destroy network
+    if(this.net){this.net.destroy();this.net=null;}
+
+    // Stop game loop
+    if(this.animFrame){cancelAnimationFrame(this.animFrame);this.animFrame=null;}
+
+    // Reset state
+    this.physics=null;
+    this.gameState=null;
+    this.playerIndex=-1;
+    this.scores=[0,0];
+    this.canShoot=false;
+    this.aiming=false;
+    this.placingCue=false;
+    this.callingPocket=false;
+    this.calledPocket=null;
+    this.powerFrac=0;
+    this.pocketAnims=[];
+    this._shotQueued=false;
+    this._shotProcessed=false;
+    this._rematchRequested=false;
+    this._rematchPending=false;
+
+    // Re-enable buttons
+    document.getElementById('btn-create').disabled=false;
+    document.getElementById('btn-join').disabled=false;
+    document.getElementById('lobby-error').textContent='';
+    document.getElementById('input-code').value='';
+
+    // Show lobby
+    this._showScreen('lobby');
   }
 
   _handleNetError(type){
@@ -1357,16 +1613,20 @@ class App{
         this.physics.step(PHYSICS_DT);
         this.accumulator-=PHYSICS_DT;
       }
-      // Collect pocket animations
       if(this.physics.pocketAnimations.length>0){
-        this.pocketAnims.push(...this.physics.pocketAnimations);
+        for(const pa of this.physics.pocketAnimations){
+          this.pocketAnims.push(pa);
+          this.particles.emit(pa.tx,pa.ty,pa.color,12);
+        }
         this.physics.pocketAnimations=[];
       }
-      // Check if stopped
       if(!this.physics.running){
         this._onPhysicsStopped();
       }
     }
+
+    // Update particles
+    this.particles.update(dt);
 
     // Render
     if(this.physics){
@@ -1382,6 +1642,7 @@ class App{
         calledPocket:this.calledPocket,
         hoverPocket:this.hoverPocket,
         pocketAnims:this.pocketAnims,
+        particles:this.particles,
       });
     }
 
@@ -1393,7 +1654,6 @@ class App{
     const isMyShot=this.gameState.currentPlayer===this.playerIndex;
 
     if(isMyShot&&!this._shotQueued){
-      // I was the shooter — send authoritative result
       const result={
         pocketed:this.physics.pocketed,
         cuePocketed:this.physics.cuePocketed,
@@ -1406,7 +1666,6 @@ class App{
       this._processShotResult(result);
     } else if(this._shotQueued){
       this._shotQueued=false;
-      // Wait for authoritative shot-end from opponent
     }
   }
 
@@ -1424,7 +1683,6 @@ class App{
 
     const isMyTurn=this.gameState.currentPlayer===this.playerIndex;
 
-    // Handle scratch: place cue ball behind line
     if(out.foul&&isMyTurn){
       const cue=this.physics.balls.find(b=>b.id===0);
       cue.x=HEAD_X/2;cue.y=TH/2;
